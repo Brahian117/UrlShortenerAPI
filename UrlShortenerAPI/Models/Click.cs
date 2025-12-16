@@ -15,7 +15,7 @@ public partial class Click
 
     public string? UserAgent { get; set; }
 
-    public string? Referrer { get; set; }
+    public string? Referer { get; set; }
 
     public virtual Url Url { get; set; } = null!;
 }

@@ -1,4 +1,4 @@
-@UrlShortenerAPI_HostAddress = http://localhost:5249
+@UrlShortenerAPI_HostAddress = http://localhost:7085
 
 GET {{UrlShortenerAPI_HostAddress}}/url/
 Accept: application/json

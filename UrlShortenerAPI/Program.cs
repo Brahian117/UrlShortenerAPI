@@ -9,6 +9,16 @@ builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.Services.AddDbContext<UrlshortenerContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("UrlshortenerDB")));
+builder.Services.AddCors   (options =>
+{
+    options.AddPolicy("AllowAll",
+        builder =>
+        {
+            builder.AllowAnyOrigin()
+                   .AllowAnyMethod()
+                   .AllowAnyHeader();
+        });
+});
 
 var app = builder.Build();
 

@@ -41,7 +41,7 @@ public partial class UrlshortenerContext : DbContext
             entity.Property(e => e.IpAddress)
                 .HasMaxLength(45)
                 .IsUnicode(false);
-            entity.Property(e => e.Referrer).HasMaxLength(2048);
+            entity.Property(e => e.Referer).HasMaxLength(2048);
             entity.Property(e => e.UserAgent).HasMaxLength(512);
 
             entity.HasOne(d => d.Url).WithMany(p => p.Clicks)
