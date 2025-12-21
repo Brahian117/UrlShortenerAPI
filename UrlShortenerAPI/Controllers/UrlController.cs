@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using UrlShortenerAPI.Models;
-using static System.Runtime.CompilerServices.RuntimeHelpers;
 
 namespace UrlShortener.Server.Controllers
 {
@@ -19,39 +18,48 @@ namespace UrlShortener.Server.Controllers
 
         [HttpGet(Name = "GetURL")]
         [Route("{UrlCode}")]
-        public RedirectResult Get(string UrlCode)
+        public ObjectResult Get(string UrlCode)
         {
-            Url? url=dbContext.Urls.Where(u => u.UrlCode == UrlCode).FirstOrDefault();
-            if (url != null && url.IsActive)
+            Url? url = dbContext.Urls.Where(u => u.UrlCode == UrlCode).FirstOrDefault();
+            if (url != null)
             {
-                // Update the ClickCount
-                url.ClickCount += 1;
-                dbContext.Urls.Update(url);              
-                dbContext.Clicks.AddAsync(new Click
+                if (url.IsActive)
                 {
-                    UrlId = url.Id,
-                    ClickedAt = DateTime.UtcNow,
-                    UserAgent = Request.Headers["User-Agent"].ToString(),
-                    Referer = Request.Headers["Referer"].ToString(),
-                    IpAddress = HttpContext.Connection.RemoteIpAddress.ToString()
-                });
-           
-                dbContext.SaveChangesAsync();
+                    // Update the ClickCount
+                    url.ClickCount += 1;
+                    dbContext.Urls.Update(url);
+                    dbContext.Clicks.AddAsync(new Click
+                    {
+                        UrlId = url.Id,
+                        ClickedAt = DateTime.UtcNow,
+                        UserAgent = Request.Headers["User-Agent"].ToString(),
+                        Referer = Request.Headers["Referer"].ToString(),
+                        IpAddress = HttpContext.Connection.RemoteIpAddress.ToString()
+                    });
 
-                return Redirect(url.OriginalUrl);
+                    dbContext.SaveChangesAsync();
+
+                    return StatusCode(StatusCodes.Status200OK, url.OriginalUrl);
+                }
+                else
+                {
+                    return StatusCode(StatusCodes.Status410Gone, "This URL has expired or is inactive.");
+                }
             }
             else
-                return Redirect("http://www.google.com"); // OJO Modify to redirect to a custom 404 page
+            {
+                return StatusCode(StatusCodes.Status404NotFound, "URL not found.");
+            }
         }
 
         [HttpPost(Name = "ShortenURL")]
         public ObjectResult Post(string LongUrl)
         {
-            string shortenedUrl = "Mydomain/";
+            string UrlShortCode = "";
 
             if (dbContext.Urls.Where(u => u.OriginalUrl == LongUrl).FirstOrDefault() == null)
             {
-                Url newUrl = new Url
+                Url newUrl = new()
                 {
                     OriginalUrl = LongUrl,
                     UrlCode = CreateUrlCode(),
@@ -61,7 +69,7 @@ namespace UrlShortener.Server.Controllers
                     ClickCount = 0
                 };
 
-                shortenedUrl += newUrl.UrlCode;
+                UrlShortCode = newUrl.UrlCode;
                 dbContext.Urls.AddAsync(newUrl);
                 dbContext.SaveChangesAsync();
 
@@ -69,19 +77,19 @@ namespace UrlShortener.Server.Controllers
            
             else
             {
-                Url existingUrl = dbContext.Urls.Where(u => u.OriginalUrl == LongUrl).First();   
-                shortenedUrl += existingUrl.UrlCode;
+                Url existingUrl = dbContext.Urls.Where(u => u.OriginalUrl == LongUrl).First();
+                UrlShortCode = existingUrl.UrlCode;
             }
 
            
-            return StatusCode(StatusCodes.Status200OK, shortenedUrl);
+            return StatusCode(StatusCodes.Status200OK, UrlShortCode);
 
 
 
 
         }
 
-        public string CreateUrlCode()
+        private string CreateUrlCode()
         {   
             bool unique= false;
             const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -96,7 +104,6 @@ namespace UrlShortener.Server.Controllers
                 {
                     unique = true;    
                 }
-
             }
             return urlCode;
 
