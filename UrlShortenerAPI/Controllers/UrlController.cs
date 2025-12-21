@@ -10,7 +10,7 @@ namespace UrlShortener.Server.Controllers
     {
         private readonly UrlshortenerContext dbContext;
 
-        public UrlController (UrlshortenerContext _dbContext)
+        public UrlController(UrlshortenerContext _dbContext)
         {
             dbContext = _dbContext;
         }
@@ -18,9 +18,11 @@ namespace UrlShortener.Server.Controllers
 
         [HttpGet(Name = "GetURL")]
         [Route("{UrlCode}")]
-        public ObjectResult Get(string UrlCode)
+        public ObjectResult Get(DataRequestGet request)
         {
-            Url? url = dbContext.Urls.Where(u => u.UrlCode == UrlCode).FirstOrDefault();
+            DataResultGet result = new();
+
+            Url? url = dbContext.Urls.Where(u => u.UrlCode == request.Url).FirstOrDefault();
             if (url != null)
             {
                 if (url.IsActive)
@@ -38,51 +40,64 @@ namespace UrlShortener.Server.Controllers
                     });
 
                     dbContext.SaveChangesAsync();
-
-                    return StatusCode(StatusCodes.Status200OK, url.OriginalUrl);
+                    result.LongUrl = url.OriginalUrl;
+                    return StatusCode(StatusCodes.Status200OK, result);
                 }
                 else
                 {
-                    return StatusCode(StatusCodes.Status410Gone, "This URL has expired or is inactive.");
+                    result.Message = "This URL has expired or is inactive.";
+                    return StatusCode(StatusCodes.Status410Gone,result);
                 }
             }
             else
             {
-                return StatusCode(StatusCodes.Status404NotFound, "URL not found.");
+                result.Message = "URL not found.";
+                return StatusCode(StatusCodes.Status404NotFound, result);
             }
         }
 
         [HttpPost(Name = "ShortenURL")]
-        public ObjectResult Post(string LongUrl)
+        public ObjectResult Post([FromBody] DataRequestPost request)
         {
-            string UrlShortCode = "";
+            DataResultPost result = new();
 
-            if (dbContext.Urls.Where(u => u.OriginalUrl == LongUrl).FirstOrDefault() == null)
+
+            try
             {
-                Url newUrl = new()
+                if (dbContext.Urls.Where(u => u.OriginalUrl == request.Url).FirstOrDefault() == null)
                 {
-                    OriginalUrl = LongUrl,
-                    UrlCode = CreateUrlCode(),
-                    CreatedAt = DateTime.UtcNow,
-                    ExpiresAt = DateTime.UtcNow.AddDays(365),
-                    IsActive = true,
-                    ClickCount = 0
-                };
+                    Url newUrl = new()
+                    {
+                        OriginalUrl = request.Url,
+                        UrlCode = CreateUrlCode(),
+                        CreatedAt = DateTime.UtcNow,
+                        ExpiresAt = DateTime.UtcNow.AddDays(365),
+                        IsActive = true,
+                        ClickCount = 0
+                    };
 
-                UrlShortCode = newUrl.UrlCode;
-                dbContext.Urls.AddAsync(newUrl);
-                dbContext.SaveChangesAsync();
+                    result.ShortenedUrl = newUrl.UrlCode;
+                    dbContext.Urls.AddAsync(newUrl);
+                    dbContext.SaveChangesAsync();
 
+                }
+
+                else
+                {
+                    Url existingUrl = dbContext.Urls.Where(u => u.OriginalUrl == request.Url).First();
+                    result.ShortenedUrl = existingUrl.UrlCode;
+                    result.Message = "URL already exists.";
+                }
+
+
+                return StatusCode(StatusCodes.Status200OK, result);
             }
-           
-            else
+            catch (Exception ex)
             {
-                Url existingUrl = dbContext.Urls.Where(u => u.OriginalUrl == LongUrl).First();
-                UrlShortCode = existingUrl.UrlCode;
+                result.Message = "An error occurred server side, please contact admin";
+                return StatusCode(StatusCodes.Status500InternalServerError, result);
             }
-
            
-            return StatusCode(StatusCodes.Status200OK, UrlShortCode);
 
 
 
