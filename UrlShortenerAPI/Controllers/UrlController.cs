@@ -18,11 +18,11 @@ namespace UrlShortener.Server.Controllers
 
         [HttpGet(Name = "GetURL")]
         [Route("{UrlCode}")]
-        public ObjectResult Get(DataRequestGet request)
+        public ObjectResult Get(string UrlCode)
         {
             DataResultGet result = new();
 
-            Url? url = dbContext.Urls.Where(u => u.UrlCode == request.Url).FirstOrDefault();
+            Url? url = dbContext.Urls.Where(u => u.UrlCode == UrlCode).FirstOrDefault();
             if (url != null)
             {
                 if (url.IsActive)
@@ -41,6 +41,7 @@ namespace UrlShortener.Server.Controllers
 
                     dbContext.SaveChangesAsync();
                     result.LongUrl = url.OriginalUrl;
+                    result.Message = "URL retrieved successfully.";
                     return StatusCode(StatusCodes.Status200OK, result);
                 }
                 else
