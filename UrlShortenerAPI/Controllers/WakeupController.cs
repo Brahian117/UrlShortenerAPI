@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using UrlShortenerAPI.Models;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 namespace UrlShortener.Server.Controllers
 {
@@ -19,9 +20,28 @@ namespace UrlShortener.Server.Controllers
 
         public async Task<IActionResult> WakeUp()
         {
-            await dbContext.Urls.FirstOrDefaultAsync();
-            return Ok("DB awake");
+            const int maxRetries = 5;
+            const int delayMs = 1000;
+
+            for (int attempt = 1; attempt <= maxRetries; attempt++)
+            {
+                try
+                {
+                    await dbContext.Database.ExecuteSqlRawAsync("SELECT 1");
+                    return Ok("DB awake");
+                }
+                catch (Exception)
+                {
+                    if (attempt == maxRetries)
+                        return StatusCode(503, "DB still waking up");
+
+                    await Task.Delay(delayMs);
+                }
+            }
+
+            return StatusCode(503);
         }
+
 
 
     }
